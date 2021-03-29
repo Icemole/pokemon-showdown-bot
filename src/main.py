@@ -11,13 +11,12 @@ from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from poke_env.player.random_player import RandomPlayer
 ## Extra imports
 import matplotlib.pyplot as plt
-from players import SimpleRLPlayer, MaxDamagePlayer
+from players import SimpleRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer
 
 
 ## Global variables
 battle_format = "gen1randombattle"
 env_player = SimpleRLPlayer(battle_format = battle_format)
-env_player2 = SimpleRLPlayer(battle_format = battle_format)
 num_actions = len(env_player.action_space)
 
 ## Agent parameters
@@ -27,17 +26,28 @@ num_episodes = 100000
 ## Defines the agent's decision making model
 def define_model():
     model = Sequential()
-    model.add(Dense(128, activation = "relu", input_shape = (1, env_player.num_features,)))
+    model.add(Dense(128, activation = "relu", input_shape = (1, env_player.num_features)))
     model.add(Flatten())
     model.add(Dense(64, activation = "relu"))
-    model.add(Dense(num_actions, activation = "linear", use_bias = False))
+    model.add(Dense(num_actions, activation = "linear"))
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
+    # print(model.get_layer("dense").input_shape)
 
     return model
 
 
 ## Defines the agent that will play the matches
-## Returns a compiled agent
-def define_agent():
+## Returns a compiled agent and a self player
+def define_agent_and_self_player():
     model = define_model()
     # model.summary()
     memory = SequentialMemory(limit = 10000, window_length = 1)
@@ -62,7 +72,7 @@ def define_agent():
     )
     dqn.compile(Adam(lr = 0.00025), metrics = ["mse"])
 
-    return dqn
+    return dqn, SelfPlayRLPlayer(model)
 
 
 ## Implements LR scheduling
@@ -112,13 +122,13 @@ def dqn_evaluation(player, dqn, nb_episodes):
 
 def main():
     ## Define the agent
-    dqn = define_agent()
-    dqn.load_weights("../models/basic.h5f")
+    dqn, self_player = define_agent_and_self_player()
+    # dqn.load_weights("../models/basic_selfplay_100k.h5f")
 
     ## Define the opponent
     # opponent = RandomPlayer(battle_format = battle_format)
-    better_opponent = MaxDamagePlayer(battle_format = battle_format)
-
+    max_damage_opponent = MaxDamagePlayer(battle_format = battle_format)
+    
     # env_player.play_against(
     #     env_algorithm = dqn_training,
     #     opponent = opponent,
@@ -129,7 +139,7 @@ def main():
     # )
     env_player.play_against(
         env_algorithm = dqn_training,
-        opponent = better_opponent,
+        opponent = self_player,
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_steps": num_episodes,
@@ -139,14 +149,14 @@ def main():
     print("\nResults against max player:")
     env_player.play_against(
         env_algorithm = dqn_evaluation,
-        opponent = better_opponent,
+        opponent = max_damage_opponent,
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_episodes": 100,
         }
     )
 
-    dqn.save_weights("../models/basic-200k.h5f", overwrite = True)
+    dqn.save_weights("../models/basic_selfplay_100k.h5f", overwrite = True)
 
 
 if __name__ == "__main__":

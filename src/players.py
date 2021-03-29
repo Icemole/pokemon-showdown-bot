@@ -60,6 +60,26 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
         return base_reward + status_reward
 
 
+class SelfPlayRLPlayer(SimpleRLPlayer):
+    model = None
+
+    def __init__(self, model):
+        self.model = model
+        model.summary()
+        super().__init__(battle_format = "gen1randombattle")
+
+    def choose_move(self, battle):
+        state = super().embed_battle(battle)
+        # I don't like this
+        # Need to expand the vector twice to reach dimension 3
+        state = np.expand_dims(state, axis = 0)
+        state = np.expand_dims(state, axis = 0)
+        predictions = self.model.predict(state)
+        action = np.argmax(predictions)
+
+        return super()._action_to_move(action, battle)
+
+
 class MaxDamagePlayer(Player):
     def choose_move(self, battle):
         # If the player can attack, it will
