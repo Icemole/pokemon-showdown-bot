@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+from tensorflow.keras.models import clone_model
 from poke_env.player.env_player import Gen4EnvSinglePlayer
 from poke_env.player.player import Player
 import numpy as np
@@ -63,9 +64,12 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
 class SelfPlayRLPlayer(SimpleRLPlayer):
     model = None
 
-    def __init__(self, model):
-        self.model = model
-        model.summary()
+    # clone_model: 
+    def __init__(self, model, clone = False):
+        if clone:
+            self.model = clone_model(model)
+        else:
+            self.model = model
         super().__init__(battle_format = "gen1randombattle")
 
     def choose_move(self, battle):

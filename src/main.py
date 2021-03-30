@@ -12,6 +12,7 @@ from poke_env.player.random_player import RandomPlayer
 ## Extra imports
 import matplotlib.pyplot as plt
 from players import SimpleRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer
+from callbacks import ModelChangerCallback
 
 
 ## Global variables
@@ -30,24 +31,13 @@ def define_model():
     model.add(Flatten())
     model.add(Dense(64, activation = "relu"))
     model.add(Dense(num_actions, activation = "linear"))
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
-    # print(model.get_layer("dense").input_shape)
 
     return model
 
 
 ## Defines the agent that will play the matches
 ## Returns a compiled agent and a self player
-def define_agent_and_self_player():
+def define_agent():
     model = define_model()
     # model.summary()
     memory = SequentialMemory(limit = 10000, window_length = 1)
@@ -72,7 +62,7 @@ def define_agent_and_self_player():
     )
     dqn.compile(Adam(lr = 0.00025), metrics = ["mse"])
 
-    return dqn, SelfPlayRLPlayer(model)
+    return dqn
 
 
 ## Implements LR scheduling
@@ -87,8 +77,8 @@ set_lr = LRS(lr_scheduling)
 
 
 ## Trains the agent
-def dqn_training(player, dqn, nb_steps):
-    training_history = dqn.fit(player, nb_steps = nb_steps, callbacks = [])
+def dqn_training(player, dqn, nb_steps, callbacks = []):
+    training_history = dqn.fit(player, nb_steps = nb_steps, callbacks = callbacks)
     player.complete_current_battle()
 
     x = training_history.history["nb_steps"]
@@ -106,7 +96,7 @@ def dqn_training(player, dqn, nb_steps):
 
 
 ## Evaluates the agent
-def dqn_evaluation(player, dqn, nb_episodes):
+def dqn_evaluation(player, dqn, nb_episodes, callbacks = []):
     player.reset_battles()
     dqn.test(
         player,
@@ -122,7 +112,8 @@ def dqn_evaluation(player, dqn, nb_episodes):
 
 def main():
     ## Define the agent
-    dqn, self_player = define_agent_and_self_player()
+    dqn = define_agent()
+    self_player = SelfPlayRLPlayer(dqn.model, clone = True)
     # dqn.load_weights("../models/basic_selfplay_100k.h5f")
 
     ## Define the opponent
@@ -143,6 +134,7 @@ def main():
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_steps": num_episodes,
+            "callbacks": [ModelChangerCallback(self_player, dqn.model, num_eps_before_change = 2)]
         }
     )
 
@@ -153,6 +145,7 @@ def main():
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_episodes": 100,
+            "callbacks": []
         }
     )
 
