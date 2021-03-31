@@ -65,11 +65,8 @@ class SelfPlayRLPlayer(SimpleRLPlayer):
     model = None
 
     # clone_model: 
-    def __init__(self, model, clone = False):
-        if clone:
-            self.model = clone_model(model)
-        else:
-            self.model = model
+    def __init__(self, model):
+        self.model = model
         super().__init__(battle_format = "gen1randombattle")
 
     def choose_move(self, battle):

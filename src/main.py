@@ -12,7 +12,7 @@ from poke_env.player.random_player import RandomPlayer
 ## Extra imports
 import matplotlib.pyplot as plt
 from players import SimpleRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer
-from callbacks import ModelChangerCallback
+from callbacks import ModelClonerCallback
 
 
 ## Global variables
@@ -113,7 +113,7 @@ def dqn_evaluation(player, dqn, nb_episodes, callbacks = []):
 def main():
     ## Define the agent
     dqn = define_agent()
-    self_player = SelfPlayRLPlayer(dqn.model, clone = True)
+    self_player = SelfPlayRLPlayer(dqn.model)
     # dqn.load_weights("../models/basic_selfplay_100k.h5f")
 
     ## Define the opponent
@@ -134,7 +134,7 @@ def main():
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_steps": num_episodes,
-            "callbacks": [ModelChangerCallback(self_player, dqn.model, num_eps_before_change = 2)]
+            "callbacks": [ModelClonerCallback(self_player, dqn.model, num_eps_before_change = 2)]
         }
     )
 
