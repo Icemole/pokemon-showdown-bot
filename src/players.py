@@ -2,6 +2,7 @@
 from tensorflow.keras.models import clone_model
 from poke_env.player.env_player import Gen4EnvSinglePlayer
 from poke_env.player.player import Player
+from poke_env.environment.abstract_battle import AbstractBattle
 import numpy as np
 
 
@@ -79,6 +80,11 @@ class SelfPlayRLPlayer(SimpleRLPlayer):
         action = np.argmax(predictions)
 
         return super()._action_to_move(action, battle)
+    
+    def _battle_finished_callback(self, battle: AbstractBattle) -> None:
+        # self._observations[battle].put(self.embed_battle(battle))
+        pass
+
 
 
 class MaxDamagePlayer(Player):
