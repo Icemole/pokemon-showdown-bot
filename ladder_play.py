@@ -3,16 +3,16 @@ import argparse
 from tensorflow import keras
 from poke_env.player_configuration import PlayerConfiguration
 from poke_env.server_configuration import ShowdownServerConfiguration
-from src.players import SelfPlayRLPlayer
+from src.players import OnlineRLPlayer
 import logging
 
-logging.basicConfig(filename='ladder_play.log', encoding='utf-8', level=logging.DEBUG)
+logging.basicConfig(filename='ladder_play.log', level=logging.INFO)
 
 
 async def main():
     parser = argparse.ArgumentParser(description='Launch script to use a poke-env powered bot in a public ladder')
     parser.add_argument('--model', help='Path to model')
-    parser.add_argument('--format',  help='Battle format')
+    parser.add_argument('--format', default='gen1randombattle',  help='Battle format')
     parser.add_argument('--battles', default=1, help='Number of battles to perform in the ladder')
     args = parser.parse_args()
 
@@ -20,8 +20,9 @@ async def main():
     model = keras.models.load_model(args.model)
 
     # Instantiate rl trained player
-    rl_player = SelfPlayRLPlayer(model=model, player_configuration=PlayerConfiguration("pleaseJorgea10", "arf2021"),
+    rl_player = OnlineRLPlayer(player_configuration=PlayerConfiguration("pleaseJorgea10", "arf2021"),
         server_configuration=ShowdownServerConfiguration, battle_format=args.format, start_timer_on_battle_start=True)
+    rl_player.set_model(model)
 
     # Playing 5 games on the ladder
     await rl_player.ladder(args.battles)

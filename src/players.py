@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from tensorflow.keras.models import clone_model
 from poke_env.player.env_player import Gen4EnvSinglePlayer
 from poke_env.player.player import Player
 from poke_env.environment.abstract_battle import AbstractBattle
@@ -85,6 +84,25 @@ class SelfPlayRLPlayer(SimpleRLPlayer):
         # self._observations[battle].put(self.embed_battle(battle))
         pass
 
+
+class OnlineRLPlayer(SimpleRLPlayer):
+
+    def set_model(self, model):
+        self.model = model
+
+    def choose_move(self, battle):
+        if hasattr(self, 'model'):
+            state = super().embed_battle(battle)
+            # I don't like this
+            # Need to expand the vector twice to reach dimension 3
+            state = np.expand_dims(state, axis = 0)
+            state = np.expand_dims(state, axis = 0)
+            predictions = self.model.predict(state)
+            action = np.argmax(predictions)
+            return super()._action_to_move(action, battle)
+        else:
+            # if no model is set, fall back on using a random move
+            return self.choose_random_move(battle)
 
 
 class MaxDamagePlayer(Player):
