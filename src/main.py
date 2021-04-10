@@ -12,7 +12,7 @@ from poke_env.player.random_player import RandomPlayer
 ## Extra imports
 import matplotlib.pyplot as plt
 from players import SimpleRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer
-from callbacks import ModelClonerCallback
+from callbacks import ModelClonerCallback, SGDRScheduler
 
 
 ## Global variables
@@ -54,7 +54,7 @@ def define_agent():
         nb_actions = num_actions,
         policy = policy,
         memory = memory,
-        nb_steps_warmup = 10000,
+        nb_steps_warmup = 500,
         gamma = 0.5,
         target_model_update = 1,
         delta_clip = 0.01,
@@ -73,7 +73,6 @@ def lr_scheduling(episode):
         return 1e-4
     else:
         return 1e-5
-set_lr = LRS(lr_scheduling)
 
 
 ## Trains the agent
@@ -117,24 +116,35 @@ def main():
     # dqn.load_weights("../models/basic_selfplay_100k.h5f")
 
     ## Define the opponent
-    # opponent = RandomPlayer(battle_format = battle_format)
     max_damage_opponent = MaxDamagePlayer(battle_format = battle_format)
-    
-    # env_player.play_against(
-    #     env_algorithm = dqn_training,
-    #     opponent = opponent,
-    #     env_algorithm_kwargs = {
-    #         "dqn": dqn,
-    #         "nb_steps": 20000,
-    #     }
-    # )
+    #random_opponent = RandomPlayer(battle_format = battle_format)
+
+    # Pre-training against max-damage opponent
+    dqn.model.optimizer.lr = 1e-3
+    env_player.play_against(
+        env_algorithm = dqn_training,
+        opponent = max_damage_opponent,
+        env_algorithm_kwargs = {
+            "dqn": dqn,
+            "nb_steps": num_episodes * 2/10
+        }
+    )
+
+    # SGDR Scheduler for self-play
+    sgdr_lr = SGDRScheduler(min_lr=1e-4,
+                             max_lr=1e-2,
+                             steps_per_cycle=num_episodes/2,
+                             lr_decay=0.95,
+                             mult_factor=1.0)
+
+    # Self-play, num_eps_before_change should match steps_per_cycle or be a multiple of it to sync weight update with lr reset
     env_player.play_against(
         env_algorithm = dqn_training,
         opponent = self_player,
         env_algorithm_kwargs = {
             "dqn": dqn,
             "nb_steps": num_episodes,
-            "callbacks": [ModelClonerCallback(self_player, dqn.model, num_eps_before_change = 2)]
+            "callbacks": [ModelClonerCallback(self_player, dqn.model, num_eps_before_change = num_episodes/2), sgdr_lr]
         }
     )
 
@@ -144,7 +154,7 @@ def main():
         opponent = max_damage_opponent,
         env_algorithm_kwargs = {
             "dqn": dqn,
-            "nb_episodes": 100,
+            "nb_episodes": 1000,
             "callbacks": []
         }
     )

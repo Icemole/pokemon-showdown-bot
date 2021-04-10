@@ -1,5 +1,4 @@
 # -*- coding: utf-8 -*-
-from tensorflow.keras.models import clone_model
 from poke_env.player.env_player import Gen4EnvSinglePlayer
 from poke_env.player.player import Player
 from poke_env.environment.abstract_battle import AbstractBattle
@@ -14,10 +13,10 @@ class Gen1EnvSinglePlayer(Gen4EnvSinglePlayer):
 class SimpleRLPlayer(Gen1EnvSinglePlayer):
     num_features = 10
     # Rewards
-    fainted_reward = 2
+    fainted_reward = 6.25
     victory_reward = 50
     # [BRN, FNT, FRZ, PAR, PSN, SLP, TOX]
-    status_rewards = [0.1, 0, 0.2, 0.2, 0.1, 0.2, 0]
+    status_rewards = [0,0,0,0,0,0,0]
 
     def embed_battle(self, battle):
         # -1 indicates that the move does not have a base power
@@ -85,6 +84,25 @@ class SelfPlayRLPlayer(SimpleRLPlayer):
         # self._observations[battle].put(self.embed_battle(battle))
         pass
 
+
+class OnlineRLPlayer(SimpleRLPlayer):
+
+    def set_model(self, model):
+        self.model = model
+
+    def choose_move(self, battle):
+        if hasattr(self, 'model'):
+            state = super().embed_battle(battle)
+            # I don't like this
+            # Need to expand the vector twice to reach dimension 3
+            state = np.expand_dims(state, axis = 0)
+            state = np.expand_dims(state, axis = 0)
+            predictions = self.model.predict(state)
+            action = np.argmax(predictions)
+            return super()._action_to_move(action, battle)
+        else:
+            # if no model is set, fall back on using a random move
+            return self.choose_random_move(battle)
 
 
 class MaxDamagePlayer(Player):
