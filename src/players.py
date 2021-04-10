@@ -13,10 +13,10 @@ class Gen1EnvSinglePlayer(Gen4EnvSinglePlayer):
 class SimpleRLPlayer(Gen1EnvSinglePlayer):
     num_features = 10
     # Rewards
-    fainted_reward = 2
+    fainted_reward = 6.25
     victory_reward = 50
     # [BRN, FNT, FRZ, PAR, PSN, SLP, TOX]
-    status_rewards = [0.1, 0, 0.2, 0.2, 0.1, 0.2, 0]
+    status_rewards = [0,0,0,0,0,0,0]
 
     def embed_battle(self, battle):
         # -1 indicates that the move does not have a base power
