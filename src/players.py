@@ -86,7 +86,7 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 
@@ -101,7 +101,7 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
 
 
 class IdRLPlayer(Gen1EnvSinglePlayer):
-    num_features = 22
+    num_features = 20
     # Rewards
     fainted_reward = 6.25
     victory_reward = 50
@@ -170,7 +170,7 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 
@@ -232,10 +232,15 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         remaining_mon_opponent += [-2] * (5 - len(remaining_mon_opponent))
 
         # Final vector with 20 components
-        return np.concatenate(
-            [moves_base_power, moves_dmg_multiplier,
+        f = [moves_base_power, moves_dmg_multiplier,
              [battle.active_pokemon.current_hp], battle.active_pokemon.base_stats.values(),
              [battle.opponent_active_pokemon.current_hp], battle.opponent_active_pokemon.base_stats.values(),
+             [active_mon, active_mon_opponent],
+             remaining_mon_team, remaining_mon_opponent]
+        return np.concatenate(
+            [moves_base_power, moves_dmg_multiplier,
+             [battle.active_pokemon.current_hp], list(battle.active_pokemon.base_stats.values()),
+             [battle.opponent_active_pokemon.current_hp], list(battle.opponent_active_pokemon.base_stats.values()),
              [active_mon, active_mon_opponent],
              remaining_mon_team, remaining_mon_opponent]
         )
@@ -280,7 +285,7 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, stats_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 

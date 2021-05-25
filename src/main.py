@@ -15,7 +15,7 @@ from poke_env.player_configuration import PlayerConfiguration
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
-from players import SimpleRLPlayer, CompleteInformationRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer, MaxDamageTypedPlayer
+from players import SimpleRLPlayer, IdRLPlayer, CompleteInformationRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer, MaxDamageTypedPlayer
 from callbacks import ModelClonerCallback, SGDRScheduler
 import argparse
 import pickle
