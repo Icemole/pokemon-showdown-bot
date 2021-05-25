@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 from poke_env.player.env_player import Gen4EnvSinglePlayer
 from poke_env.player.player import Player
+from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Concatenate
+from tensorflow.keras.models import Sequential, Model
 from poke_env.environment.abstract_battle import AbstractBattle
 from poke_env.data import POKEDEX
 import numpy as np
@@ -69,6 +71,34 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
 
         return base_reward + status_reward
 
+    def default_model(self, multisource=False):
+        if multisource:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            moves_layer = Lambda(lambda x: x[:, :8])(flatten_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+
+            remaining_team_layer = Lambda(lambda x: x[:, 8:])(flatten_layer)
+            remaining_team_layer = Dense(4, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(4, activation="relu")(remaining_team_layer)
+
+            multisource_model = Concatenate()([moves_layer, remaining_team_layer])
+            multisource_model = Dense(96, activation="relu")(multisource_model)
+            multisource_model = Dense(64, activation="relu")(multisource_model)
+            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+
+            model = Model(input_layer, output_layer)
+
+        else:
+            model = Sequential()
+            model.add(Dense(128, activation="relu", input_shape=(1, self.num_features,)))
+            model.add(Flatten())
+            model.add(Dense(64, activation="relu"))
+            model.add(Dense(len(self.action_space), activation="linear"))
+
+        return model
+
 
 class IdRLPlayer(Gen1EnvSinglePlayer):
     num_features = 22
@@ -123,6 +153,36 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
              remaining_mon_opponent]
         )
 
+    def default_model(self, multisource=False):
+        if multisource:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            moves_layer = Lambda(lambda x: x[:, :8])(flatten_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+
+            remaining_team_layer = Lambda(lambda x: x[:, 8:])(flatten_layer)
+            remaining_team_layer = Dense(64, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(32, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
+
+            multisource_model = Concatenate()([moves_layer, remaining_team_layer])
+            multisource_model = Dense(96, activation="relu")(multisource_model)
+            multisource_model = Dense(64, activation="relu")(multisource_model)
+            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+
+            model = Model(input_layer, output_layer)
+
+        else:
+            model = Sequential()
+            model.add(Dense(128, activation="relu", input_shape=(1, self.num_features,)))
+            model.add(Flatten())
+            model.add(Dense(64, activation="relu"))
+            model.add(Dense(len(self.action_space), activation="linear"))
+
+        return model
+
 class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
     num_features = 34
     # Rewards
@@ -174,8 +234,8 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         # Final vector with 20 components
         return np.concatenate(
             [moves_base_power, moves_dmg_multiplier,
-             [battle.active_pokemon.current_hp, battle.active_pokemon.current_hp],
-             battle.active_pokemon.base_stats.values(), active_mon_opponent.values(),
+             [battle.active_pokemon.current_hp], battle.active_pokemon.base_stats.values(),
+             [battle.opponent_active_pokemon.current_hp], battle.opponent_active_pokemon.base_stats.values(),
              [active_mon, active_mon_opponent],
              remaining_mon_team, remaining_mon_opponent]
         )
@@ -198,6 +258,40 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         #         status_reward -= self.status_rewards[ally.status.value - 1]
         
         return base_reward + status_reward
+
+    def default_model(self, multisource=False):
+        if multisource:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            moves_layer = Lambda(lambda x: x[:, :8])(flatten_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+
+            stats_layer = Lambda(lambda x: x[:, 8:24])(flatten_layer)
+            stats_layer = Dense(32, activation="relu")(stats_layer)
+            stats_layer = Dense(16, activation="relu")(stats_layer)
+
+            remaining_team_layer = Lambda(lambda x: x[:, :24])(flatten_layer)
+            remaining_team_layer = Dense(64, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(32, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
+
+            multisource_model = Concatenate()([moves_layer, stats_layer, remaining_team_layer])
+            multisource_model = Dense(96, activation="relu")(multisource_model)
+            multisource_model = Dense(64, activation="relu")(multisource_model)
+            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+
+            model = Model(input_layer, output_layer)
+
+        else:
+            model = Sequential()
+            model.add(Dense(128, activation="relu", input_shape=(1, self.num_features,)))
+            model.add(Flatten())
+            model.add(Dense(64, activation="relu"))
+            model.add(Dense(len(self.action_space), activation="linear"))
+
+        return model
 
 
 class SelfPlayRLPlayer(SimpleRLPlayer):
