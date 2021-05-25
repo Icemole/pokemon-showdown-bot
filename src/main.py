@@ -11,7 +11,7 @@ from rl.policy import LinearAnnealedPolicy, EpsGreedyQPolicy
 from poke_env.player.random_player import RandomPlayer
 ## Extra imports
 import matplotlib.pyplot as plt
-from players import SimpleRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer
+from players import SimpleRLPlayer, CompleteInformationRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer, MaxDamageTypedPlayer
 from callbacks import ModelClonerCallback, SGDRScheduler
 
 
@@ -126,17 +126,17 @@ def main():
         opponent = max_damage_opponent,
         env_algorithm_kwargs = {
             "dqn": dqn,
-            "nb_steps": num_episodes * 2/10
+            "nb_steps": num_episodes
         }
     )
 
     # SGDR Scheduler for self-play
     sgdr_lr = SGDRScheduler(min_lr=1e-4,
                              max_lr=1e-2,
-                             steps_per_cycle=num_episodes/2,
+                             steps_per_cycle=num_episodes/4,
                              lr_decay=0.95,
                              mult_factor=1.0)
-
+    """
     # Self-play, num_eps_before_change should match steps_per_cycle or be a multiple of it to sync weight update with lr reset
     env_player.play_against(
         env_algorithm = dqn_training,
@@ -147,7 +147,7 @@ def main():
             "callbacks": [ModelClonerCallback(self_player, dqn.model, num_eps_before_change = num_episodes/2), sgdr_lr]
         }
     )
-
+    """
     print("\nResults against max player:")
     env_player.play_against(
         env_algorithm = dqn_evaluation,
