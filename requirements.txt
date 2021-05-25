@@ -6,3 +6,4 @@ poke-env
 
 matplotlib
 dataclasses
+argparse
