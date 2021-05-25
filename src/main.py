@@ -62,7 +62,6 @@ def define_model():
 ## Defines the agent that will play the matches
 ## Returns a compiled agent and a self player
 def define_agent(model, model_path):
-    # TODO: if model is defined, load it from file, if not define it
     if model_path:
         model = keras.models.load_model(model_path)
     elif not model:
