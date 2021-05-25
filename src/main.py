@@ -61,12 +61,12 @@ def define_model():
 
 ## Defines the agent that will play the matches
 ## Returns a compiled agent and a self player
-def define_agent(model_path):
+def define_agent(model, model_path):
     # TODO: if model is defined, load it from file, if not define it
-    if model_path is None:
-        model = define_model()
-    else:
+    if model_path:
         model = keras.models.load_model(model_path)
+    elif not model:
+        model = define_model()
     # model.summary()
     memory = SequentialMemory(limit = 10000, window_length = 1)
     policy = LinearAnnealedPolicy(
@@ -160,7 +160,7 @@ def main():
     args = parser.parse_args()
 
     ## Define the agent
-    dqn = define_agent(args.model_path_load)
+    dqn = define_agent(env_player.default_model(multisource=False), args.model_path_load)
 
     ## Define the opponent
     # self_player = SelfPlayRLPlayer(dqn.model)
