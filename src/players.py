@@ -86,7 +86,7 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 
@@ -170,7 +170,7 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 
@@ -280,7 +280,7 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
             multisource_model = Concatenate()([moves_layer, stats_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
             multisource_model = Dense(64, activation="relu")(multisource_model)
-            output_layer = Dense(self.action_space, activation="linear")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
 
             model = Model(input_layer, output_layer)
 
