@@ -2,7 +2,7 @@ numpy
 #tensorflow>=2.2.0
 #keras
 keras-rl2==1.0.3
-poke-env
+poke-env==0.4.15
 
 matplotlib
 dataclasses
