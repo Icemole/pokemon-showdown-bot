@@ -15,7 +15,7 @@ from poke_env.player_configuration import PlayerConfiguration
 import matplotlib as mpl
 mpl.use("Agg")
 import matplotlib.pyplot as plt
-from players import SimpleRLPlayer, IdRLPlayer, CompleteInformationRLPlayer, SelfPlayRLPlayer, MaxDamagePlayer, MaxDamageTypedPlayer
+from players import SimpleRLPlayer, TypeRLPlayer, IdRLPlayer, CompleteInformationRLPlayer, CompleteInformationV2RLPlayer, SelfPlayRLPlayer, MaxDamagePlayer, MaxDamageTypedPlayer
 from callbacks import ModelClonerCallback, SGDRScheduler
 import argparse
 import pickle
@@ -26,12 +26,12 @@ opponent_username = "opponentbot"
 
 ## Global variables
 battle_format = "gen1randombattle"
-env_player = IdRLPlayer(battle_format = battle_format,
+env_player = TypeRLPlayer(battle_format = battle_format,
         player_configuration=PlayerConfiguration(username=agent_username, password=None))
 num_actions = len(env_player.action_space)
 
 ## Agent parameters
-num_episodes = 500000
+num_episodes = 100000
 
 
 ## Defines the agent's decision making model
