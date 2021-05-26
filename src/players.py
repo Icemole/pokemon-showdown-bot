@@ -106,7 +106,7 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
     fainted_reward = 6.25
     victory_reward = 50
     # [BRN, FNT, FRZ, PAR, PSN, SLP, TOX]
-    status_rewards = [0,0,0,0,0,0,0]
+    status_rewards = [0, 0, 0, 0, 0, 0, 0]
 
     def embed_battle(self, battle):
         """
@@ -141,6 +141,7 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
         remaining_mon_team = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                               for identifier, mon in battle.team.items()
                               if POKEDEX[mon.species].get("num") != active_mon]
+        remaining_mon_team += [-2] * (5 - len(remaining_mon_team))
         # Get dex numbers of Rival Pokemon available to switch, -1 if the Pokemon has fainted or -2 if it is unknown (has not been seen yet)
         remaining_mon_opponent = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                               for identifier, mon in battle.opponent_team.items()
@@ -225,11 +226,12 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         remaining_mon_team = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                               for identifier, mon in battle.team.items()
                               if POKEDEX[mon.species].get("num") != active_mon]
+        remaining_mon_team += [-2] * (6 - len(remaining_mon_team))
         # Get dex numbers of Rival Pokemon available to switch, -1 if the Pokemon has fainted or -2 if it is unknown (has not been seen yet)
         remaining_mon_opponent = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                                   for identifier, mon in battle.opponent_team.items()
                                   if POKEDEX[mon.species].get("num") != active_mon_opponent]
-        remaining_mon_opponent += [-2] * (5 - len(remaining_mon_opponent))
+        remaining_mon_opponent += [-2] * (6 - len(remaining_mon_opponent))
 
         # Final vector with 20 components
         f = [moves_base_power, moves_dmg_multiplier,
