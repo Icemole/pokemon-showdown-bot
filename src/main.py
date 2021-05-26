@@ -21,14 +21,17 @@ import argparse
 import pickle
 
 
+agent_username = "thisbotrules"
+opponent_username = "opponentbot"
+
 ## Global variables
 battle_format = "gen1randombattle"
-env_player = SimpleRLPlayer(battle_format = battle_format,
-        player_configuration=PlayerConfiguration(username="thisbotrules", password=None))
+env_player = IdRLPlayer(battle_format = battle_format,
+        player_configuration=PlayerConfiguration(username=agent_username, password=None))
 num_actions = len(env_player.action_space)
 
 ## Agent parameters
-num_episodes = 100000
+num_episodes = 500000
 
 
 ## Defines the agent's decision making model
@@ -159,12 +162,12 @@ def main():
     args = parser.parse_args()
 
     ## Define the agent
-    dqn = define_agent(env_player.default_model(multisource=False), args.model_path_load)
+    dqn = define_agent(env_player.default_model(multisource=True), args.model_path_load)
 
     ## Define the opponent
     # self_player = SelfPlayRLPlayer(dqn.model)
     max_damage_opponent = MaxDamagePlayer(battle_format = battle_format,
-            player_configuration=PlayerConfiguration(username="opponentbot", password=None))
+            player_configuration=PlayerConfiguration(username=opponent_username, password=None))
     #random_opponent = RandomPlayer(battle_format = battle_format)
 
     # Pre-training against max-damage opponent
