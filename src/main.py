@@ -26,12 +26,12 @@ opponent_username = "opponentbot"
 
 ## Global variables
 battle_format = "gen1randombattle"
-env_player = TypeRLPlayer(battle_format = battle_format,
+env_player = CompleteInformationV2RLPlayer(battle_format = battle_format,
         player_configuration=PlayerConfiguration(username=agent_username, password=None))
 num_actions = len(env_player.action_space)
 
 ## Agent parameters
-num_episodes = 100000
+num_episodes = 500000
 
 
 ## Defines the agent's decision making model
@@ -165,8 +165,13 @@ def main():
     dqn = define_agent(env_player.default_model(multisource=True), args.model_path_load)
 
     ## Define the opponent
-    # self_player = SelfPlayRLPlayer(dqn.model)
+    # self_player = SelfPlayRLPlayer(dqn.model, battle_format = battle_format,
+    #               player_configuration=PlayerConfiguration(username=opponent_username, password=None))
+    random_opponent = RandomPlayer(battle_format = battle_format,
+            player_configuration=PlayerConfiguration(username=opponent_username, password=None))
     max_damage_opponent = MaxDamagePlayer(battle_format = battle_format,
+            player_configuration=PlayerConfiguration(username=opponent_username, password=None))
+    max_damage_typed_opponent = MaxDamageTypedPlayer(battle_format = battle_format,
             player_configuration=PlayerConfiguration(username=opponent_username, password=None))
     #random_opponent = RandomPlayer(battle_format = battle_format)
 
@@ -200,11 +205,32 @@ def main():
         }
     )
     """
+    print("\nResults against random player:")
+    env_player.play_against(
+        env_algorithm=dqn_evaluation,
+        opponent=random_opponent,
+        env_algorithm_kwargs={
+            "dqn": dqn,
+            "nb_episodes": 1000,
+            "callbacks": []
+        }
+    )
 
     print("\nResults against max player:")
     env_player.play_against(
         env_algorithm=dqn_evaluation,
         opponent=max_damage_opponent,
+        env_algorithm_kwargs={
+            "dqn": dqn,
+            "nb_episodes": 1000,
+            "callbacks": []
+        }
+    )
+
+    print("\nResults against max typed player:")
+    env_player.play_against(
+        env_algorithm=dqn_evaluation,
+        opponent=max_damage_typed_opponent,
         env_algorithm_kwargs={
             "dqn": dqn,
             "nb_episodes": 1000,
