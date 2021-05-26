@@ -5,6 +5,7 @@ from tensorflow.keras.layers import Dense, Flatten, Input, Lambda, Concatenate
 from tensorflow.keras.models import Sequential, Model
 from poke_env.environment.abstract_battle import AbstractBattle
 from poke_env.data import POKEDEX
+from poke_env.environment.pokemon import Pokemon
 import numpy as np
 
 
@@ -41,6 +42,10 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
                     battle.opponent_active_pokemon.type_1,
                     battle.opponent_active_pokemon.type_2,
                 )
+                # take same type attack bonus into consideration
+                if moves_dmg_multiplier[i] != 0:
+                    if move.type == battle.active_pokemon.type_1 or move.type == battle.active_pokemon.type_2:
+                        moves_dmg_multiplier[i] += 0.5
 
         # We count how many pokemons have not fainted in each team
         remaining_mon_team = len([mon for mon in battle.team.values() if mon.fainted]) / 6
@@ -82,6 +87,100 @@ class SimpleRLPlayer(Gen1EnvSinglePlayer):
             remaining_team_layer = Lambda(lambda x: x[:, 8:])(flatten_layer)
             remaining_team_layer = Dense(4, activation="relu")(remaining_team_layer)
             remaining_team_layer = Dense(4, activation="relu")(remaining_team_layer)
+
+            multisource_model = Concatenate()([moves_layer, remaining_team_layer])
+            multisource_model = Dense(96, activation="relu")(multisource_model)
+            multisource_model = Dense(64, activation="relu")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
+
+            model = Model(input_layer, output_layer)
+
+        else:
+            model = Sequential()
+            model.add(Dense(128, activation="relu", input_shape=(1, self.num_features,)))
+            model.add(Flatten())
+            model.add(Dense(64, activation="relu"))
+            model.add(Dense(len(self.action_space), activation="linear"))
+
+        return model
+
+class TypeRLPlayer(Gen1EnvSinglePlayer):
+    num_features = 22
+    # Rewards
+    fainted_reward = 0
+    victory_reward = 50
+    # [BRN, FNT, FRZ, PAR, PSN, SLP, TOX]
+    status_rewards = [0, 0, 0, 0, 0, 0, 0]
+
+    def get_pokemon_types(self, pokemon: Pokemon):
+        return [pokemon.type_1.value if pokemon.type_1 else -1, pokemon.type_2.value if pokemon.type_2 else -1]
+
+    def embed_battle(self, battle):
+        """
+        Calculates embed vector for the current moment in the battle
+        Embed_battle vector:
+        [active pokemon base power for all 4 moves] + [active pokemon damage multiplier for all 4 moves]
+        + number of own remaining pokemon + number of enemy remaining pokemon
+        :param battle:
+        :return:
+        """
+        # -1 indicates that the move does not have a base power
+        # or is not available
+        moves_base_power = -np.ones(4)
+        moves_dmg_multiplier = np.ones(4)
+        for i, move in enumerate(battle.available_moves):
+            moves_base_power[i] = move.base_power / 100  # Simple rescaling to facilitate learning
+            if move.type:
+                moves_dmg_multiplier[i] = move.type.damage_multiplier(
+                    battle.opponent_active_pokemon.type_1,
+                    battle.opponent_active_pokemon.type_2,
+                )
+                # take same type attack bonus into consideration
+                if moves_dmg_multiplier[i] != 0:
+                    if move.type == battle.active_pokemon.type_1 or move.type == battle.active_pokemon.type_2:
+                        moves_dmg_multiplier[i] += 0.5
+
+        remaining_team = [self.get_pokemon_types(mon) for identifier, mon in battle.team.items() if
+                          mon != battle.active_pokemon]
+        remaining_team += [[-2] * 2] * (5 - len(remaining_team))
+
+        # Final vector with 22 components
+        return np.concatenate(
+            [moves_base_power, moves_dmg_multiplier,
+            self.get_pokemon_types(battle.active_pokemon),
+             self.get_pokemon_types(battle.opponent_active_pokemon)] +
+            remaining_team
+        )
+
+    def compute_reward(self, battle) -> float:
+        base_reward = self.reward_computing_helper(
+            battle,
+            fainted_value=self.fainted_reward,
+            hp_value=1,
+            victory_value=self.victory_reward,
+        )
+        # Does not take into account own status changes
+        status_reward = 0
+        for enemy in battle.opponent_team.values():
+            if enemy.status is not None:
+                status_reward += self.status_rewards[enemy.status.value - 1]
+        # for ally in battle.team.values():
+        #     if ally.status is not None:
+        #         status_reward -= self.status_rewards[ally.status.value - 1]
+
+        return base_reward + status_reward
+
+    def default_model(self, multisource=False):
+        if multisource:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            moves_layer = Lambda(lambda x: x[:, :8])(flatten_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+
+            remaining_team_layer = Lambda(lambda x: x[:, 8:])(flatten_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
+            remaining_team_layer = Dense(16, activation="relu")(remaining_team_layer)
 
             multisource_model = Concatenate()([moves_layer, remaining_team_layer])
             multisource_model = Dense(96, activation="relu")(multisource_model)
@@ -184,6 +283,7 @@ class IdRLPlayer(Gen1EnvSinglePlayer):
 
         return model
 
+
 class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
     num_features = 34
     # Rewards
@@ -226,12 +326,12 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         remaining_mon_team = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                               for identifier, mon in battle.team.items()
                               if POKEDEX[mon.species].get("num") != active_mon]
-        remaining_mon_team += [-2] * (6 - len(remaining_mon_team))
+        remaining_mon_team += [-2] * (5 - len(remaining_mon_team))
         # Get dex numbers of Rival Pokemon available to switch, -1 if the Pokemon has fainted or -2 if it is unknown (has not been seen yet)
         remaining_mon_opponent = [POKEDEX[mon.species].get("num") if not mon.fainted else -1
                                   for identifier, mon in battle.opponent_team.items()
                                   if POKEDEX[mon.species].get("num") != active_mon_opponent]
-        remaining_mon_opponent += [-2] * (6 - len(remaining_mon_opponent))
+        remaining_mon_opponent += [-2] * (5 - len(remaining_mon_opponent))
 
         # Final vector with 20 components
         f = [moves_base_power, moves_dmg_multiplier,
@@ -247,13 +347,12 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
              remaining_mon_team, remaining_mon_opponent]
         )
 
-
     def compute_reward(self, battle) -> float:
         base_reward = self.reward_computing_helper(
             battle,
-            fainted_value = self.fainted_reward,
-            hp_value = 1,
-            victory_value = self.victory_reward,
+            fainted_value=self.fainted_reward,
+            hp_value=1,
+            victory_value=self.victory_reward,
         )
         # Does not take into account own status changes
         status_reward = 0
@@ -263,7 +362,7 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
         # for ally in battle.team.values():
         #     if ally.status is not None:
         #         status_reward -= self.status_rewards[ally.status.value - 1]
-        
+
         return base_reward + status_reward
 
     def default_model(self, multisource=False):
@@ -297,6 +396,120 @@ class CompleteInformationRLPlayer(Gen1EnvSinglePlayer):
             model.add(Flatten())
             model.add(Dense(64, activation="relu"))
             model.add(Dense(len(self.action_space), activation="linear"))
+
+        return model
+
+
+class CompleteInformationV2RLPlayer(Gen1EnvSinglePlayer):
+    num_features = 116 # 8 + 9 * 12
+    # Rewards
+    fainted_reward = 0
+    victory_reward = 50
+    # [BRN, FNT, FRZ, PAR, PSN, SLP, TOX]
+    status_rewards = [0, 0, 0, 0, 0, 0, 0]
+
+    def get_pokemon_vector(self, pokemon: Pokemon):
+        """
+        Return a size 9 vector containing all pokemon information
+        :param pokemon:
+        :return:
+        """
+        return [pokemon.type_1.value if pokemon.type_1 else -1, pokemon.type_2.value if pokemon.type_2 else -1,
+                pokemon.current_hp] +  list(pokemon.base_stats.values())
+
+    def embed_battle(self, battle):
+        """
+        Calculates embed vector for the current moment in the battle
+        Embed_battle vector:
+        [active pokemon base power for all 4 moves] + [active pokemon damage multiplier for all 4 moves]
+        + [base stats of active pokemon] + [base stats of enemy active pokemon]
+        + id of active pokemon + id of enemy active pokemon
+        + [ids of own remaining pokemons] + [id of enemy remaining pokemon]
+        :param battle:
+        :return:
+        """
+        # -1 indicates that the move does not have a base power or is not available
+        moves_base_power = -np.ones(4)
+        moves_dmg_multiplier = np.ones(4)
+        for i, move in enumerate(battle.available_moves):
+            moves_base_power[i] = move.base_power / 100  # Simple rescaling to facilitate learning
+            if move.type:
+                moves_dmg_multiplier[i] = move.type.damage_multiplier(
+                    battle.opponent_active_pokemon.type_1,
+                    battle.opponent_active_pokemon.type_2,
+                )
+                # take same type attack bonus into consideration
+                if moves_dmg_multiplier[i] != 0:
+                    if move.type == battle.active_pokemon.type_1 or move.type == battle.active_pokemon.type_2:
+                        moves_dmg_multiplier[i] += 0.5
+
+        remaining_team = [self.get_pokemon_vector(mon) for identifier, mon in battle.team.items() if mon != battle.active_pokemon]
+        remaining_team += [[-1] * 9] * (5 - len(remaining_team))
+        opponent_remaining_team = [self.get_pokemon_vector(mon) for identifier, mon in battle.opponent_team.items() if mon != battle.opponent_active_pokemon]
+        remaining_team += [[-1] * 9] * (5 - len(opponent_remaining_team))
+
+        # Final vector with 116 components
+        return np.concatenate(
+            [moves_base_power, moves_dmg_multiplier,
+
+             self.get_pokemon_vector(battle.active_pokemon),
+             self.get_pokemon_vector(battle.opponent_active_pokemon)] +
+             remaining_team +
+             opponent_remaining_team
+        )
+
+
+    def compute_reward(self, battle) -> float:
+        base_reward = self.reward_computing_helper(
+            battle,
+            fainted_value = self.fainted_reward,
+            hp_value = 1,
+            victory_value = self.victory_reward,
+        )
+        # Does not take into account own status changes
+        status_reward = 0
+        for enemy in battle.opponent_team.values():
+            if enemy.status is not None:
+                status_reward += self.status_rewards[enemy.status.value - 1]
+        # for ally in battle.team.values():
+        #     if ally.status is not None:
+        #         status_reward -= self.status_rewards[ally.status.value - 1]
+        
+        return base_reward + status_reward
+
+    def default_model(self, multisource=False):
+        if multisource:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            moves_layer = Lambda(lambda x: x[:, :8])(flatten_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+            moves_layer = Dense(16, activation="relu")(moves_layer)
+
+            stats_layer = Lambda(lambda x: x[:, 8:])(flatten_layer)
+            stats_layer = Dense(64, activation="relu")(stats_layer)
+            stats_layer = Dense(32, activation="relu")(stats_layer)
+            stats_layer = Dense(32, activation="relu")(stats_layer)
+            stats_layer = Dense(16, activation="relu")(stats_layer)
+
+            multisource_model = Concatenate()([moves_layer, stats_layer])
+            multisource_model = Dense(96, activation="relu")(multisource_model)
+            multisource_model = Dense(64, activation="relu")(multisource_model)
+            output_layer = Dense(len(self.action_space), activation="linear")(multisource_model)
+
+            model = Model(input_layer, output_layer)
+
+        else:
+            input_layer = Input(shape=(1, self.num_features))
+            flatten_layer = Flatten()(input_layer)
+            dense_layer = Dense(128, activation="relu")(flatten_layer)
+            dense_layer = Dense(128, activation="relu")(dense_layer)
+            dense_layer = Dense(64, activation="relu")(dense_layer)
+            dense_layer = Dense(64, activation="relu")(dense_layer)
+            dense_layer = Dense(32, activation="relu")(dense_layer)
+            dense_layer = Dense(32, activation="relu")(dense_layer)
+            output_layer = Dense(len(self.action_space), activation="linear")(dense_layer)
+
+            model = Model(input_layer, output_layer)
 
         return model
 
